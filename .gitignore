@@ -1,0 +1,7 @@
+# ignore
+binary*
+cache
+chroot*
+local
+cpiso.sh
+*.log
