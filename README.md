@@ -11,4 +11,10 @@ sebian
 * git
 `apt-get install git`
 
+## Quickstart ##
+`cd ~
+git clone https://github.com/eqsoft/sebian
+cd sebian`
+
+edit most important config files:
 
