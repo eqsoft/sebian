@@ -6,16 +6,19 @@ sebian
 
 ## Requirements ##
 * Debian Linux (Wheezy recommended)
+
 ```bash
 apt-get install live-build live-config live-boot
 ```
 * git
+
 ```bash
 apt-get install git
 ```
 
 ## Quickstart ##
 * get repository
+
 ```bash
 cd ~
 git clone https://github.com/eqsoft/sebian
@@ -23,6 +26,7 @@ cd sebian
 ```
 
 * edit basic config files
+
 edit packages
 ```bash
 config/package-lists/*.chroot
