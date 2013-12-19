@@ -10,6 +10,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
+    along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
    Stefan Schneider <schneider@hrz.uni-marburg.de> 2012
@@ -63,14 +64,14 @@ var xullib = (function () {
 		params			=	{}, 		
 		DEBUG			=	false, 		// upper case: correspondent function "_debug()"
 		lf			=	"\n",
-		checkUrl		= 	/^(http|https|file):\/\//gi,		
+		checkUrl		= 	/(http|https|file)\:\/\/.*/i,		
 		checkP12		=	/\.p12$/i,
 		checkCRT		=	/\.crt$/i,
 		checkJSON		=	/^\s*?\{.*\}\s*?$/,
 		checkBase64		=	/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/,
 		winObserver		= 	{ // needed?
 			observe	: function(aSubject, aTopic, aData) {
-				_debug("observe: " + aTopic);
+				//_debug("observe: " + aTopic);
 				switch (aTopic) {
 					case "domwindowopened" :
 					break;
@@ -139,6 +140,24 @@ var xullib = (function () {
 	function init(cmdLine) {
 		cl = cmdLine;
 		DEBUG = getBool(getCmd("debug"));
+		if (DEBUG) {
+			let debugPrefs = FileUtils.getFile("AChrom",["defaults",APPNAME,"preferences","debug.js"], null);
+			if (debugPrefs.exists()) {
+				prefs.readUserPrefs(debugPrefs);
+			}
+			else {
+				_debug("no debug preferences: " + debugPrefs.path);
+			}
+		}
+		let defaultPrefs = FileUtils.getFile("AChrom",["defaults",APPNAME,"preferences","prefs.js"], null);
+		if (defaultPrefs.exists()) {
+			prefs.readUserPrefs(defaultPrefs);				
+		}
+		else {
+			_debug("no default preferences: " + defaultPrefs.path);
+		}
+		prefs.readUserPrefs(null); // tricky: for current prefs file use profile prefs, so my original prefs will never be overridden ;-)						
+		prefs.savePrefFile(null);
 		initContext();
 	}
 	
@@ -176,7 +195,8 @@ var xullib = (function () {
 			// Services.ww.registerNotification(winObserver); // needed?
 			// profileObserver.register();
 			
-			let autostart = getBool(getCmd("autostart")); // if true, xullib will try to inject application module jsm and execute the init() function of the module;			
+			let autostart = getBool(getCmd("autostart")); // if true, xullib will try to inject application module jsm and execute the init() function of the module;
+						
 			let errMsg = "Error importing app module " + APPNAME;
 			
 			// application itself
@@ -185,6 +205,7 @@ var xullib = (function () {
 			}
 			
 			_debug("debug:" + DEBUG);
+			/*
 			if (DEBUG) {
 				let debugPrefs = FileUtils.getFile("AChrom",["defaults",APPNAME,"preferences","debug.js"], null);
 				if (debugPrefs.exists()) {
@@ -194,9 +215,11 @@ var xullib = (function () {
 					_debug("no debug preferences: " + debugPrefs.path);
 				}
 			}
+			*/ 
 			hiddenWin = Services.appShell.hiddenDOMWindow;
 			userAppDir = FileUtils.getDir("AppRegD",[], null);			 
 			_debug("userAppDir :" + userAppDir.path);
+			/*
 			let defaultPrefs = FileUtils.getFile("AChrom",["defaults",APPNAME,"preferences","prefs.js"], null);
 			if (defaultPrefs.exists()) {
 				prefs.readUserPrefs(defaultPrefs);				
@@ -206,7 +229,7 @@ var xullib = (function () {
 			}
 			prefs.readUserPrefs(null); // tricky: for current prefs file use profile prefs, so my original prefs will never be overridden ;-)						
 			prefs.savePrefFile(null);
-			
+			*/
 			// profile
 			// use the new OS.File API ( >= Gecko 18) for profile Handling
 			try {
@@ -337,9 +360,24 @@ var xullib = (function () {
 			ctrls[ctrl] = obj;
 		}
 		
-		var config = getCmd(ctrl+"ctrl");
+		var config = getCmd("ctrl");
+		
+		
 		if (config != null) {
-			getJSON(config,_cb);
+			if (config == 1) {				
+				let ctrlConfig = FileUtils.getFile("AChrom",["defaults",APPNAME,ctrl+"ctrl.json"],false);				
+				if (!ctrlConfig.exists()) {
+					_debug("no controller config file exists: " + ctrlConfig.path);
+					obj.init(null,cb);
+				}		
+				else {	
+					config = fph.newFileURI(ctrlConfig).spec; 				
+					getJSON(config,_cb);
+				}
+			}
+			else {
+				getJSON(config,_cb);
+			}
 		}
 		else {
 			obj.init(null,cb);
@@ -589,8 +627,8 @@ var xullib = (function () {
 	
 	function getParam(k) {
 		var k2 = (k.indexOf(".") < 0) ? APPNAME + "." + k : k;
-		if (ctrls["os"].hasParamMapping(k2)) {
-			var ret = ctrls["os"].getParam(k2);
+		if (ctrls["os"].hasParamMapping(k2)) {			
+			var ret = ctrls["os"].getParam(k2);			
 			if (ret != null) {
 				return ret;
 			}
@@ -851,7 +889,7 @@ var xullib = (function () {
 	}
 	
 	// utils, debugging and misc
-	function getJSON(data,callback) {
+	function getJSON(data,callback) {		
 		// check base64
 		if (checkBase64.test(data)) {
 			try {
@@ -892,7 +930,9 @@ var xullib = (function () {
 		}
 		// check url
 		let url = data;
-		if (!checkUrl.test(url)) {
+		var isUrl = checkUrl.test(url.toString());
+		
+		if (!isUrl) {
 			let f = FileUtils.File(url);
 			if (!f || !f.exists()) {
 				_err("wrong url for getJSON: " + url);
@@ -904,10 +944,7 @@ var xullib = (function () {
 			}
 		}
 		_debug("try to load json object: " + url);
-		Cc["@mozilla.org/network/io-service;1"]
-		.getService(Ci.nsIIOService)
-		.newChannel(url, "", null)
-		.asyncOpen({
+		Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService).newChannel(url, "", null).asyncOpen({
 			_data: "",
 			onDataAvailable: function (req, ctx, str, del, n) {
 				var ins = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(Ci.nsIScriptableInputStream)
@@ -1031,7 +1068,6 @@ var xullib = (function () {
 		for (var k in a) {
 			if (k.indexOf(".")<0) {
 				try {
-					_debug(APPNAME + '.' + k);
 					a[APPNAME + '.' + k] = a.k;				
 					delete a.k;
 				}

@@ -7,12 +7,10 @@ lb config noauto \
         --linux-flavours "686-pae" \
         --distribution "wheezy" \
         --binary-images "netboot" \
-        --net-root-server "192.168.0.1" \
-        --net-root-path "/srv/debian-live" \
         --memtest "none" \
         --apt-recommends "false" \
         --apt-indices "false" \
         --archive-areas "main contrib non-free" \
-        --bootappend-live "console=ttyS0 loglevel=3 boot=live config hostname=sebian username=sebianuser locale=de_DE.UTF-8 keyboard-layouts=de" \
+        --bootappend-live "console=ttyS0 loglevel=3 boot=live config hostname=sebian username=sebianuser locale=de_DE.UTF-8 keyboard-layouts=de netboot=nfs nfsroot=192.168.2.10:/srv/debian-live" \
         "${@}"
 
